@@ -1,20 +1,26 @@
 //
 //  SwitchUIViewSnapshotTests.swift
-//  SparkSwitchTests
+//  SparkSwitchSnapshotTests
 //
-//  Created by robin.lemaire on 13/06/2023.
+//  Created by robin.lemaire on 02/10/2024.
 //  Copyright © 2023 Adevinta. All rights reserved.
 //
 
 import XCTest
-import SnapshotTesting // TODO: remove SnapshotTesting
+import SnapshotTesting
 @testable import SparkSwitch
-@_spi(SI_SPI) import SparkCommon
 @_spi(SI_SPI) import SparkCommonSnapshotTesting
+@_spi(SI_SPI) import SparkCommon
+@_spi(SI_SPI) import SparkCommonTesting
+@_spi(SI_SPI) import SparkThemingTesting
 import SparkTheming
 import SparkTheme
 
 final class SwitchUIViewSnapshotTests: UIKitComponentSnapshotTestCase {
+
+    // MARK: - Type Alias
+
+    private typealias Constants = SwitchSnapshotConstants
 
     // MARK: - Properties
 
@@ -22,86 +28,110 @@ final class SwitchUIViewSnapshotTests: UIKitComponentSnapshotTestCase {
 
     // MARK: - Tests
 
-    func test_uikit_switch_colors() throws {
-        let suts = try SwitchSutSnapshotTests.allColorsCases(isSwiftUIComponent: false)
-        self.test(suts: suts)
-    }
+    func test() throws {
+        let scenarios = SwitchScenarioSnapshotTests.allCases
 
-    func test_uikit_switch_contens() throws {
-        let suts = try SwitchSutSnapshotTests.allContentsCases(isSwiftUIComponent: false)
-        self.test(suts: suts)
-    }
+        for scenario in scenarios {
+            let configurations: [SwitchConfigurationSnapshotTests] = try scenario.configuration()
+            for configuration in configurations {
+                var view: SwitchUIView!
 
-    func test_uikit_switch_positions() throws {
-        let suts = try SwitchSutSnapshotTests.allPositionsCases(isSwiftUIComponent: false)
-        self.test(suts: suts)
+                let text = configuration.content.text
+                let attributedText = configuration.content.attributedLabel(isSwiftUIComponent: false)?.leftValue
+
+                // Images + Text
+                if configuration.isIcon, let text {
+                    view = SwitchUIView(
+                        theme: self.theme,
+                        isOn: configuration.value.isOn,
+                        alignment: configuration.alignment,
+                        intent: configuration.intent,
+                        isEnabled: configuration.status.isEnabled,
+                        images: UIImage.images,
+                        text: text
+                    )
+                } else if configuration.isIcon, let attributedText { // Images + Attributed Text
+                    view = SwitchUIView(
+                        theme: self.theme,
+                        isOn: configuration.value.isOn,
+                        alignment: configuration.alignment,
+                        intent: configuration.intent,
+                        isEnabled: configuration.status.isEnabled,
+                        images: UIImage.images,
+                        attributedText: attributedText
+                    )
+                } else if configuration.isIcon { // Only Image
+                    view = SwitchUIView(
+                        theme: self.theme,
+                        isOn: configuration.value.isOn,
+                        alignment: configuration.alignment,
+                        intent: configuration.intent,
+                        isEnabled: configuration.status.isEnabled,
+                        images: UIImage.images
+                    )
+                } else if let text { // Only Text
+                    view = SwitchUIView(
+                        theme: self.theme,
+                        isOn: configuration.value.isOn,
+                        alignment: configuration.alignment,
+                        intent: configuration.intent,
+                        isEnabled: configuration.status.isEnabled,
+                        text: text
+                    )
+                } else if let attributedText { // Only Attributed Text
+                    view = SwitchUIView(
+                        theme: self.theme,
+                        isOn: configuration.value.isOn,
+                        alignment: configuration.alignment,
+                        intent: configuration.intent,
+                        isEnabled: configuration.status.isEnabled,
+                        attributedText: attributedText
+                    )
+                } else { // Without image and text
+                    view = SwitchUIView(
+                        theme: self.theme,
+                        isOn: configuration.value.isOn,
+                        alignment: configuration.alignment,
+                        intent: configuration.intent,
+                        isEnabled: configuration.status.isEnabled
+                    )
+                }
+
+                view.backgroundColor = .gray.withAlphaComponent(0.1)
+
+                let backgroundView = UIView()
+                backgroundView.backgroundColor = .systemBackground
+                backgroundView.translatesAutoresizingMaskIntoConstraints = false
+                NSLayoutConstraint.activate([
+                    backgroundView.widthAnchor.constraint(lessThanOrEqualToConstant: Constants.maxWidth)
+                ])
+                backgroundView.addSubview(view)
+                NSLayoutConstraint.stickEdges(
+                    from: view,
+                    to: backgroundView,
+                    insets: .init(all: Constants.padding)
+                )
+
+                self.assertSnapshot(
+                    matching: backgroundView,
+                    modes: configuration.modes,
+                    sizes: configuration.sizes,
+                    testName: configuration.testName()
+                )
+            }
+        }
     }
 }
 
-// MARK: - Testing
+// MARK: - Extension
 
-private extension SwitchUIViewSnapshotTests {
+private extension UIImage {
 
-    func test(suts: [SwitchSutSnapshotTests], function: String = #function) {
-        for sut in suts {
-            var view: SwitchUIView!
-
-            // Images + Text
-            if let images = sut.images, let text = sut.text {
-                view = SwitchUIView(
-                    theme: self.theme,
-                    isOn: sut.isOn,
-                    alignment: sut.alignment,
-                    intent: sut.intent,
-                    isEnabled: sut.isEnabled,
-                    images: images.leftValue,
-                    text: text
-                )
-            } else if let images = sut.images, let attributedText = sut.attributedText { // Images + Attributed Text
-                view = SwitchUIView(
-                    theme: self.theme,
-                    isOn: sut.isOn,
-                    alignment: sut.alignment,
-                    intent: sut.intent,
-                    isEnabled: sut.isEnabled,
-                    images: images.leftValue,
-                    attributedText: attributedText.leftValue
-                )
-            } else if let text = sut.text { // Only Text
-                view = SwitchUIView(
-                    theme: self.theme,
-                    isOn: sut.isOn,
-                    alignment: sut.alignment,
-                    intent: sut.intent,
-                    isEnabled: sut.isEnabled,
-                    text: text
-                )
-            } else if let attributedText = sut.attributedText { // Only Attributed Text
-                view = SwitchUIView(
-                    theme: self.theme,
-                    isOn: sut.isOn,
-                    alignment: sut.alignment,
-                    intent: sut.intent,
-                    isEnabled: sut.isEnabled,
-                    attributedText: attributedText.leftValue
-                )
-            } else { // Without image and text
-                view = SwitchUIView(
-                    theme: self.theme,
-                    isOn: sut.isOn,
-                    alignment: sut.alignment,
-                    intent: sut.intent,
-                    isEnabled: sut.isEnabled
-                )
-            }
-
-            view.backgroundColor = self.theme.colors.base.background.uiColor
-
-            self.assertSnapshot(
-                matching: view,
-                modes: [.dark, .light],
-                sizes: Constants.sizes,
-                testName: sut.testName(on: function)
+    static var images: SwitchUIImages {
+        get {
+            .init(
+                on: IconographyTests.shared.switchOn,
+                off: IconographyTests.shared.switchOff
             )
         }
     }

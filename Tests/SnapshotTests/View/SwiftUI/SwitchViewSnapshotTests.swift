@@ -1,19 +1,21 @@
 //
 //  SwitchViewSnapshotTests.swift
-//  SparkSwitchTests
+//  SparkSwitchSnapshotTests
 //
-//  Created by robin.lemaire on 14/09/2023.
+//  Created by robin.lemaire on 02/10/2024.
 //  Copyright © 2023 Adevinta. All rights reserved.
 //
 
 import XCTest
 import SnapshotTesting
-import SwiftUI
-import SparkTheme
-import SparkTheming
 @testable import SparkSwitch
-@_spi(SI_SPI) import SparkCommonSnapshotTesting
 @_spi(SI_SPI) import SparkCommon
+@_spi(SI_SPI) import SparkCommonTesting
+@_spi(SI_SPI) import SparkCommonSnapshotTesting
+@_spi(SI_SPI) import SparkThemingTesting
+import SparkTheming
+import SparkTheme
+import SwiftUI
 
 final class SwitchViewSnapshotTests: SwiftUIComponentSnapshotTestCase {
 
@@ -23,61 +25,91 @@ final class SwitchViewSnapshotTests: SwiftUIComponentSnapshotTestCase {
 
     // MARK: - Tests
 
-    func test_swiftUI_switch_colors() throws {
-        let suts = try SwitchSutSnapshotTests.allColorsCases(isSwiftUIComponent: true)
-        self.test(suts: suts)
-    }
+    func test() throws {
+        let scenarios = SwitchScenarioSnapshotTests.allCases
 
-    func test_swiftUI_switch_contens() throws {
-        let suts = try SwitchSutSnapshotTests.allContentsCases(isSwiftUIComponent: true)
-        self.test(suts: suts)
-    }
+        for scenario in scenarios {
+            let configurations: [SwitchConfigurationSnapshotTests] = try scenario.configuration()
 
-    func test_swiftUI_switch_positions() throws {
-        let suts = try SwitchSutSnapshotTests.allPositionsCases(isSwiftUIComponent: true)
-        self.test(suts: suts)
+            for configuration in configurations {
+                let view = SnapshotView(configuration: configuration)
+
+                self.assertSnapshot(
+                    matching: view,
+                    modes: configuration.modes,
+                    sizes: configuration.sizes,
+                    testName: configuration.testName()
+                )
+            }
+        }
     }
 }
 
-// MARK: - Testing
+// MARK: - View
 
-private extension SwitchViewSnapshotTests {
+private struct SnapshotView: View {
 
-    func test(suts: [SwitchSutSnapshotTests], function: String = #function) {
-        for sut in suts {
-            var view = SwitchView(
-                theme: self.theme,
-                intent: sut.intent,
-                alignment: sut.alignment,
-                isOn: .constant(sut.isOn)
-            )
-                .disabled(!sut.isEnabled)
+    // MARK: - Type Alias
 
-            // Images + Text
-            if let images = sut.images, let text = sut.text {
-                view = view
-                    .images(images.rightValue)
-                    .text(text)
-            } else if let images = sut.images, let attributedText = sut.attributedText { // Images + Attributed Text
-                view = view
-                    .images(images.rightValue)
-                    .attributedText(attributedText.rightValue)
-            } else if let text = sut.text { // Only Text
-                view = view
-                    .text(text)
-            } else if let attributedText = sut.attributedText { // Only Attributed Text
-                view = view
-                    .attributedText(attributedText.rightValue)
-            }
+    private typealias Constants = SwitchSnapshotConstants
 
-            self.assertSnapshot(
-                matching: view
-                    .background(self.theme.colors.base.background.color)
-                    .fixedSize(),
-                modes: [.dark, .light],
-                sizes: Constants.sizes,
-                testName: sut.testName(on: function)
-            )
+    // MARK: - Properties
+
+    private let theme: Theme = SparkTheme.shared
+    let configuration: SwitchConfigurationSnapshotTests
+
+    // MARK: - Initialization
+
+    init(configuration: SwitchConfigurationSnapshotTests) {
+        self.configuration = configuration
+    }
+
+    // MARK: - View
+
+    var body: some View {
+        SwitchView(
+            theme: self.theme,
+            intent: self.configuration.intent,
+            alignment: self.configuration.alignment,
+            isOn: .constant(self.configuration.value.isOn)
+        )
+        .images(isIcon: self.configuration.isIcon)
+        .text(contentResilience: self.configuration.content)
+        .disabled(!self.configuration.status.isEnabled)
+        .background(.gray.opacity(0.1))
+        .padding(Constants.padding)
+        .fixedSize()
+        .background(.background)
+    }
+}
+
+// MARK: - Extension
+
+private extension SwitchView {
+
+    func images(isIcon: Bool) -> Self {
+        if isIcon {
+            self.images(Image.images)
+        } else {
+            self
         }
     }
+
+    func text(contentResilience: SwitchContentResilience) -> Self {
+        if let text = contentResilience.text {
+            self.text(text)
+        } else if let attributedText = contentResilience.attributedLabel(isSwiftUIComponent: true) {
+            self.attributedText(attributedText.rightValue)
+        } else {
+            self
+        }
+    }
+}
+
+private extension Image {
+
+    static let images: SwitchImages = .init(
+        on: Image(systemName: "checkmark"),
+        off: Image(systemName: "xmark")
+    )
 }
